@@ -1,0 +1,237 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User mapped to Clerk userId
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String?
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leagueMemberships LeagueMembership[]
+  draftPicks        DraftPick[]
+  rosterEntries     RosterEntry[]
+  episodeScores     EpisodeScore[]
+  transactionsFrom  Transaction[] @relation("TransactionFrom")
+  transactionsTo    Transaction[] @relation("TransactionTo")
+
+  @@index([clerkId])
+}
+
+// League
+model League {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  inviteCode  String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships LeagueMembership[]
+  seasons     Season[]
+
+  @@index([inviteCode])
+}
+
+// League membership with role
+model LeagueMembership {
+  id        String   @id @default(cuid())
+  leagueId  String
+  userId    String
+  role      String   @default("MEMBER") // MEMBER, COMMISSIONER
+  joinedAt  DateTime @default(now())
+
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([leagueId, userId])
+  @@index([leagueId])
+  @@index([userId])
+}
+
+// Season with config
+model Season {
+  id                 String   @id @default(cuid())
+  leagueId           String
+  name               String
+  rosterSize         Int      @default(6)
+  draftType          String   @default("SNAKE") // SNAKE, LINEAR
+  pickTimerSeconds   Int      @default(90) // 0 = untimed
+  captainEnabled     Boolean  @default(false)
+  spoilerLockEnabled Boolean  @default(true)
+  scoringConfig      Json?    // Flexible scoring config
+  status             String   @default("DRAFT") // DRAFT, IN_PROGRESS, COMPLETED
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  league         League         @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  episodes       Episode[]
+  castaways      Castaway[]
+  drafts         Draft[]
+  rosterEntries  RosterEntry[]
+  episodeOutcomes EpisodeOutcome[]
+  transactions   Transaction[]
+
+  @@index([leagueId])
+  @@index([status])
+}
+
+// Episode
+model Episode {
+  id              String   @id @default(cuid())
+  seasonId        String
+  episodeNumber   Int
+  name            String?
+  airDateTime     DateTime
+  lockOverride    Boolean  @default(false) // Commissioner override for spoiler lock
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  season          Season          @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  episodeOutcomes EpisodeOutcome[]
+  episodeScores   EpisodeScore[]
+
+  @@unique([seasonId, episodeNumber])
+  @@index([seasonId])
+  @@index([airDateTime])
+}
+
+// Castaway per season
+model Castaway {
+  id        String   @id @default(cuid())
+  seasonId  String
+  name      String
+  tribe     String?
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  season       Season       @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  draftPicks   DraftPick[]
+  rosterEntries RosterEntry[]
+  transactions Transaction[]
+
+  @@index([seasonId])
+}
+
+// Draft
+model Draft {
+  id        String   @id @default(cuid())
+  seasonId  String   @unique
+  status    String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED
+  currentPickNumber Int @default(1)
+  currentUserId     String? // Whose turn it is
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  season Season      @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  picks  DraftPick[]
+
+  @@index([status])
+}
+
+// Draft pick
+model DraftPick {
+  id        String   @id @default(cuid())
+  draftId   String
+  userId    String
+  castawayId String
+  pickNumber Int
+  createdAt DateTime @default(now())
+
+  draft     Draft     @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  castaway  Castaway  @relation(fields: [castawayId], references: [id], onDelete: Cascade)
+
+  @@unique([draftId, pickNumber])
+  @@unique([draftId, castawayId])
+  @@index([draftId])
+  @@index([userId])
+}
+
+// Roster entry (user + season + castaway)
+model RosterEntry {
+  id         String   @id @default(cuid())
+  userId     String
+  seasonId   String
+  castawayId String
+  isCaptain  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  season   Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  castaway Castaway @relation(fields: [castawayId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, seasonId, castawayId])
+  @@index([userId, seasonId])
+  @@index([seasonId])
+}
+
+// Episode outcome (raw data)
+model EpisodeOutcome {
+  id        String   @id @default(cuid())
+  seasonId  String
+  episodeId String
+  castawayId String
+  outcomeType String // IMMUNITY_WIN, REWARD_WIN, IDOL_FOUND, IDOL_PLAYED, VOTED_OUT, FINAL_TRIBAL, WINNER
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  season Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@index([seasonId, episodeId])
+  @@index([castawayId])
+}
+
+// Episode score (computed per user per episode)
+model EpisodeScore {
+  id        String   @id @default(cuid())
+  userId    String
+  seasonId  String
+  episodeId String
+  score     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  season  Season  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, seasonId, episodeId])
+  @@index([userId, seasonId])
+  @@index([seasonId, episodeId])
+}
+
+// Transaction (for future waivers/trades)
+model Transaction {
+  id          String   @id @default(cuid())
+  seasonId    String
+  type        String   // ADD, DROP, TRADE
+  fromUserId  String?
+  toUserId    String?
+  castawayId  String
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  season    Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  fromUser  User?  @relation("TransactionFrom", fields: [fromUserId], references: [id], onDelete: SetNull)
+  toUser    User?  @relation("TransactionTo", fields: [toUserId], references: [id], onDelete: SetNull)
+  castaway  Castaway @relation(fields: [castawayId], references: [id], onDelete: Cascade)
+
+  @@index([seasonId])
+  @@index([status])
+}
