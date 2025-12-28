@@ -34,7 +34,7 @@ A Fantasy Survivor game inspired by the TV show *Survivor*. Draft castaways, tra
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Bun (latest version)
 - PostgreSQL database
 - Clerk account for authentication
 
@@ -48,7 +48,7 @@ cd survivor-fantasy
 
 2. Install dependencies:
 ```bash
-npm install
+bun install
 ```
 
 3. Set up environment variables:
@@ -75,18 +75,18 @@ Replace the values with your actual:
 4. Set up the database:
 ```bash
 # Generate Prisma Client
-npm run db:generate
+bun run db:generate
 
 # Run migrations
-npm run db:migrate
+bun run db:migrate
 
 # (Optional) Seed with sample data
-npm run db:seed
+bun run db:seed
 ```
 
 5. Start the development server:
 ```bash
-npm run dev
+bun run dev
 ```
 
 Visit `http://localhost:3000` to see the app.
@@ -104,13 +104,13 @@ Visit `http://localhost:3000` to see the app.
 
 ```bash
 # Create a new migration
-npm run db:migrate
+bun run db:migrate
 
 # Apply migrations to production
-npx prisma migrate deploy
+bunx prisma migrate deploy
 
 # Open Prisma Studio to view/edit data
-npm run db:studio
+bun run db:studio
 ```
 
 ## Gameplay Flow
@@ -230,7 +230,7 @@ prisma/
 ### Adding New Features
 
 1. Update Prisma schema if needed
-2. Run migration: `npm run db:migrate`
+2. Run migration: `bun run db:migrate`
 3. Create/update tRPC router
 4. Add service logic if needed
 5. Create UI components/pages

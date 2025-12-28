@@ -2,6 +2,7 @@
   "name": "survivor-fantasy",
   "version": "1.0.0",
   "description": "Fantasy Survivor game inspired by the TV show Survivor",
+  "packageManager": "bun@1.1.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
