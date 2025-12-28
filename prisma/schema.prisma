@@ -7,7 +7,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // User mapped to Clerk userId
@@ -81,6 +80,7 @@ model Season {
   drafts         Draft[]
   rosterEntries  RosterEntry[]
   episodeOutcomes EpisodeOutcome[]
+  episodeScores  EpisodeScore[]
   transactions   Transaction[]
 
   @@index([leagueId])
